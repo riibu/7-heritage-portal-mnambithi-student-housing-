@@ -158,11 +158,11 @@ export default function LandlordDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {applications.map((app) => (
-                    <tr key={app.id}>
+                    <tr key={app.ref_code || app.id}>
                       <td className="p-4">
                         <div className="font-semibold text-slate-900">{app.fullName}</div>
                         <div className="text-xs text-slate-500">
-                          {app.id} • Student #{app.studentNumber}
+                          {app.ref_code || app.id} • Student #{app.studentNumber}
                         </div>
                       </td>
                       <td className="p-4">

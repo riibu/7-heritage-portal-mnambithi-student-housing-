@@ -1,40 +1,62 @@
 import { useState, useEffect } from "react";
-import { X, CheckCircle2, Wifi } from "lucide-react";
+import { X, CheckCircle2, Wifi, AlertCircle } from "lucide-react";
 import { usePortal } from "../context/PortalContext";
+
+const normalizeRoomTier = (tier) => {
+  if (!tier) return "3-Sleeper Sharing Room (R1,200 p.p.)";
+  if (tier.includes("2-Sleeper")) return "2-Sleeper Sharing Room (R1,500 p.p.)";
+  return "3-Sleeper Sharing Room (R1,200 p.p.)";
+};
+
+const createEmptyForm = (defaultRoomTier = "") => ({
+  fullName: "",
+  idNumber: "",
+  studentNumber: "",
+  phone: "",
+  nextOfKinPhone: "",
+  fundingType: "NSFAS",
+  roomPreference: normalizeRoomTier(defaultRoomTier),
+  moveInDate: "",
+});
 
 export default function ApplicationModal({ isOpen, defaultRoomTier, onClose }) {
   const { residence, submitApplication } = usePortal();
   const [submittedId, setSubmittedId] = useState(null);
-  const [form, setForm] = useState({
-    fullName: "",
-    idNumber: "",
-    studentNumber: "",
-    phone: "",
-    nextOfKinPhone: "",
-    fundingType: "NSFAS",
-    roomPreference: defaultRoomTier || "3-Sleeper Sharing Room (R1,200 p.p.)",
-    moveInDate: "",
-  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState(() => createEmptyForm(defaultRoomTier));
 
   useEffect(() => {
-    if (defaultRoomTier) {
-      setForm((prev) => ({ ...prev, roomPreference: defaultRoomTier }));
+    if (isOpen) {
+      setForm(createEmptyForm(defaultRoomTier));
+      setError("");
     }
-  }, [defaultRoomTier]);
+  }, [isOpen, defaultRoomTier]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const refId = submitApplication({
-      ...form,
-      residenceName: residence.name,
-    });
-    setSubmittedId(refId);
+    setError("");
+    setSubmitting(true);
+    try {
+      const refId = await submitApplication({
+        ...form,
+        residenceName: residence.name,
+      });
+      setSubmittedId(refId);
+      setForm(createEmptyForm(defaultRoomTier));
+    } catch (err) {
+      setError(err.message || "Could not submit application. Please check your connection.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleClose = () => {
     setSubmittedId(null);
+    setError("");
+    setForm(createEmptyForm());
     onClose();
   };
 
@@ -54,8 +76,9 @@ export default function ApplicationModal({ isOpen, defaultRoomTier, onClose }) {
             <h3 className="text-xl font-bold text-slate-900">Application Received!</h3>
             <p className="text-sm text-slate-600">
               Your <strong>7 Heritage</strong> reference number is{" "}
-              <span className="font-mono font-bold text-slate-900">{submittedId}</span>. We will
-              message you on WhatsApp to confirm your room allocation.
+              <span className="font-mono font-bold text-slate-900">{submittedId}</span>. Save this
+              code—once the landlord approves your application, Tenant Maintenance will unlock
+              automatically.
             </p>
             <button
               onClick={handleClose}
@@ -77,7 +100,14 @@ export default function ApplicationModal({ isOpen, defaultRoomTier, onClose }) {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-sm">
+            {error && (
+              <div className="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} autoComplete="off" className="space-y-3 text-sm">
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
                   Student Full Name *
@@ -199,9 +229,10 @@ export default function ApplicationModal({ isOpen, defaultRoomTier, onClose }) {
 
               <button
                 type="submit"
-                className="w-full bg-rose-600 text-white py-2.5 rounded-xl font-semibold hover:bg-rose-700 transition mt-2"
+                disabled={submitting}
+                className="w-full bg-rose-600 text-white py-2.5 rounded-xl font-semibold hover:bg-rose-700 disabled:bg-rose-300 transition mt-2"
               >
-                Submit Application to 7 Heritage
+                {submitting ? "Submitting to 7 Heritage..." : "Submit Application to 7 Heritage"}
               </button>
             </form>
           </>
